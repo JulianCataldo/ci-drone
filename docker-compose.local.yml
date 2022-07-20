@@ -1,0 +1,48 @@
+version: "3"
+
+services:
+  drone:
+    # TODO: pin version number
+    image: drone/drone:latest
+    restart: always
+    # env_file: .env
+    environment:
+      - DRONE_GITEA_SERVER=http://${LAN_HOST:?}:${PORT_GITEA:-1988}
+      - DRONE_GITEA_CLIENT_ID=${DRONE_GITEA_CLIENT_ID:?}
+      - DRONE_GITEA_CLIENT_SECRET=${DRONE_GITEA_CLIENT_SECRET:?}
+
+      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET:-drone_secret}
+      - DRONE_SERVER_HOST=${LAN_HOST:?}:${PORT_WEB:-1502}
+      - DRONE_SERVER_PROTO=http
+      - DRONE_LOGS_DEBUG=true
+    ports:
+      - "${LAN_HOST:?}:${PORT_WEB:-1502}:80"
+    volumes:
+      # - ${DATA_DIR:-./volumes/gitea}/data:/var/lib/drone/
+      - ${DATA_DIR:-./volumes/drone}:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - internal
+      - vcs-gitea_gitea
+
+  # # Might be unecessary on the same machine
+  drone-runner-docker:
+    image: drone/drone-runner-docker:latest
+    restart: always
+    # env_file: .env
+    environment:
+      - DRONE_RPC_HOST=drone
+      - DRONE_RPC_PROTO=http
+      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET:-drone_secret}
+    depends_on:
+      - drone
+    networks:
+      - internal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+networks:
+  internal:
+    driver: bridge
+  vcs-gitea_gitea:
+    external: true
